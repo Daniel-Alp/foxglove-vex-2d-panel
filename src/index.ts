@@ -1,6 +1,6 @@
 import { ExtensionContext } from "@foxglove/extension";
-import { initExamplePanel } from "./ExamplePanel";
+import { initVEXTwoDeePanel } from "./VEXTwoDee";
 
 export function activate(extensionContext: ExtensionContext): void {
-  extensionContext.registerPanel({ name: "VEX 2D Panel", initPanel: initExamplePanel });
+  extensionContext.registerPanel({ name: "VEX 2D Panel", initPanel: initVEXTwoDeePanel });
 }
