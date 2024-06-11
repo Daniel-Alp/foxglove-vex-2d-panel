@@ -1,7 +1,7 @@
-export type Path = {
-    topic: string
+export type Trajectory = {
+    topic: string | undefined;
 }
 
 export type Config = {
-    paths: Path[]
+    trajectories: Trajectory[];
 }
