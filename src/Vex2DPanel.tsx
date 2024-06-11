@@ -1,6 +1,6 @@
 import ReactDOM from "react-dom";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Immutable, MessageEvent, PanelExtensionContext, SettingsTree, SettingsTreeAction, SettingsTreeChildren, Topic } from "@foxglove/extension";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { Immutable, MessageEvent, PanelExtensionContext, SettingsTree, SettingsTreeAction, SettingsTreeChildren, Subscription, Topic } from "@foxglove/extension";
 import { produce } from "immer"
 import { Config } from "./config";
 
@@ -10,10 +10,8 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
   const [config, setConfig] = useState<Config>({trajectories: []});
   const [renderDone, setRenderDone] = useState<() => void | undefined>();
 
-  const odomTopics = useMemo(() => (topics ?? []).filter((topic) => topic.schemaName === "odometry"), [topics]);
-
   useEffect(() => {
-    const odomTopicsOptions = odomTopics.map((topic) => ({value: topic.name, label: topic.name}));
+    const topicOptions = topics ? topics.map((topic) => ({value: topic.name, label: topic.name})) : [];
 
     const children: SettingsTreeChildren = Object.fromEntries(
       config.trajectories.map((trajectory, index) => [
@@ -32,7 +30,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
             topic: {
               label: "Topic",
               input: "select",
-              options: odomTopicsOptions,
+              options: topicOptions,
               value: trajectory.topic
             }
           },
@@ -88,10 +86,19 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     context.onRender = (renderState, done) => {
       setRenderDone(() => done);
       setMessages(renderState.allFrames);
-      setTopics(renderState.topics);
+      setTopics((renderState.topics ?? []).filter((topic) => topic.schemaName === "odometry"));
     }
     context.watch("topics");
-    context.watch("allFrames");
+    context.watch("allFrames")
+
+    const subscriptions: Subscription[] = [];
+    config.trajectories.forEach((trajectory) => {
+      if (trajectory.topic) {
+        subscriptions.push({topic: trajectory.topic, preload: true});
+      }
+    });
+    context.subscribe(subscriptions);
+
   }, [context]);
 
   useEffect(() => {
@@ -104,6 +111,8 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
 
   return (
     <div style={{ height: "100%", padding: "1rem" }}>
+    
+
     </div>
   );
 }
