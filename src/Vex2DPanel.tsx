@@ -19,66 +19,68 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
       config.trajectories.map((trajectory, index) => [
         `${index}`,
         {
-          actions: [{
-            type: "action",
-            id: "delete-trajectory",
-            label: "Delete trajectory",
-            display: "inline",
-            icon: "Clear"
-          }],
-          label: trajectory.topic ?? `Trajectory ${index + 1}`,
-          fields: {
-            pathTopic: {
-                label: "Topic",
-                input: "select",
-                options: odomTopicsOptions,
-                value: trajectory.topic
+          actions: [
+            {
+              type: "action",
+              id: "delete-trajectory",
+              label: "Delete trajectory",
+              display: "inline",
+              icon: "Clear"
             }
-          }
+          ],
+          fields: {
+            topic: {
+              label: "Topic",
+              input: "select",
+              options: odomTopicsOptions,
+              value: trajectory.topic
+            }
+          },
+          label: trajectory.topic ?? `Trajectory ${index + 1}`
         }
       ])
     );
 
     const panelSettings: SettingsTree = {
       nodes: {
-          trajectories: {
-              actions: [{
-                  type: "action",
-                  id: "add-trajectory",
-                  label: "Add trajectory",
-                  display: "inline",
-                  icon: "Add"
-              }],
-              children,
-              label: "Trajectories"
-          }
-      },
-      actionHandler: (action: SettingsTreeAction) => {
-        if (action.action === "perform-node-action") {
-          const {path, id} = action.payload;
-          if (id === "add-trajectory") {
-            setConfig(produce<Config>((draft) => {
-                draft.trajectories.push({topic: undefined});
-              })
-            );
-          } else if (id === "delete-trajectory") {
-            const index = path[1];
-            setConfig(produce<Config>((draft) => {
-              draft.trajectories.splice(Number(index), 1);
-              })
-            );
-          }
-        } else {
-          const {path, value} = action.payload;
-          if (path[0] === "trajectories") {
-            setConfig(produce<Config>((draft) => {
-                draft.trajectories[Number(path[1])]!.topic = value as string;
-              })
-            );
-          }
+        trajectories: {
+          actions: [
+            {
+              type: "action",
+              id: "add-trajectory",
+              label: "Add trajectory",
+              display: "inline",
+              icon: "Add"
+            }
+          ],
+          children,
+          label: "Trajectories"
         }
+      },
+      actionHandler: (settingsTreeAction: SettingsTreeAction) => {
+        setConfig(
+          produce<Config>((draft) => {
+            const {action, payload} = settingsTreeAction;
+            if (action === "perform-node-action") {
+              const {path, id} = payload;
+              if (id === "add-trajectory") {
+                draft.trajectories.push({topic: undefined});
+              } else if (id === "delete-trajectory") {
+                const index = Number(path[1]);
+                draft.trajectories.splice(index, 1);
+              }
+            } else {
+              const {path, value} = payload;
+              if (path[0] === "trajectories") {
+                const index = Number(path[1]);
+                draft.trajectories[index]!.topic = value as string;
+              }
+            }
+          })
+        );
       }
     };
+
     context.updatePanelSettingsEditor(panelSettings);
   });
 
