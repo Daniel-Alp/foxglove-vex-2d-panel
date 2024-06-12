@@ -1,12 +1,18 @@
 import ReactDOM from "react-dom";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { Immutable, MessageEvent, PanelExtensionContext, SettingsTree, SettingsTreeAction, SettingsTreeChildren, Subscription, Topic } from "@foxglove/extension";
+import { Immutable, PanelExtensionContext, SettingsTree, SettingsTreeAction, SettingsTreeChildren, Subscription, Topic } from "@foxglove/extension";
 import { produce } from "immer"
 import { Config } from "./config";
 
+type OdomMessage = {
+  x: number;
+  y: number;
+  theta: number;
+}
+
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
-  const [topics, setTopics] = useState<Immutable<Topic[]> | undefined>();
-  const [messages, setMessages] = useState<Immutable<MessageEvent[]> | undefined>()
+  const [topics, setTopics] = useState<Immutable<Topic[]>>();
+  const [message, setMessage] = useState<OdomMessage>()
   const [config, setConfig] = useState<Config>({trajectories: []});
   const [renderDone, setRenderDone] = useState<() => void | undefined>();
 
@@ -57,7 +63,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
       },
       actionHandler: (settingsTreeAction: SettingsTreeAction) => {
         setConfig(
-          produce<Config>((draft) => {
+          produce<Config>(draft => {
             const {action, payload} = settingsTreeAction;
             if (action === "perform-node-action") {
               const {path, id} = payload;
@@ -82,37 +88,39 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     context.updatePanelSettingsEditor(panelSettings);
   });
 
-  useLayoutEffect(() => {
-    context.onRender = (renderState, done) => {
-      setRenderDone(() => done);
-      setMessages(renderState.allFrames);
-      setTopics((renderState.topics ?? []).filter((topic) => topic.schemaName === "odometry"));
-    }
-    context.watch("topics");
-    context.watch("allFrames")
-
+  useEffect(() => {
     const subscriptions: Subscription[] = [];
-    config.trajectories.forEach((trajectory) => {
+    config.trajectories.forEach(trajectory => {
       if (trajectory.topic) {
         subscriptions.push({topic: trajectory.topic, preload: true});
       }
     });
     context.subscribe(subscriptions);
+  }, [config]);
 
+  useLayoutEffect(() => {
+    context.onRender = (renderState, done) => {
+      setRenderDone(() => done);
+      setTopics((renderState.topics ?? []).filter(topic => topic.schemaName === "odometry"));
+      
+      if (renderState.currentFrame && renderState.currentFrame.length > 0) {
+        setMessage(renderState.currentFrame[renderState.currentFrame.length - 1]!.message as OdomMessage);
+      }
+    }
+    context.watch("topics");
+    context.watch("currentFrame");
   }, [context]);
-
-  useEffect(() => {
-    // Putting this here temporarily otherwise vscode complains
-  }, [messages])
 
   useEffect(() => {
     renderDone?.();
   }, [renderDone]);
 
-  return (
-    <div style={{ height: "100%", padding: "1rem" }}>
-    
 
+  return (
+    <div style={{height: "100%", padding: "1rem"}}>
+      x: {message?.x} <br></br>
+      y: {message?.y} <br></br>
+      theta: {message?.theta}
     </div>
   );
 }
@@ -123,4 +131,4 @@ export function initVex2DPanel(context: PanelExtensionContext): () => void {
   return () => {
     ReactDOM.unmountComponentAtNode(context.panelElement);
   };
-}
+}; 
