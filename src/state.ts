@@ -5,10 +5,11 @@ export type Position = {
 }
 
 export type Path = {
+    topic: string;
     positions: Position[];
     // TODO: add colour & thickness properties
 }
 
 export type PanelState = {
-    paths: Record<string, Path>;
+    paths: Path[];
 }
