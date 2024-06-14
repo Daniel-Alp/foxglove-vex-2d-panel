@@ -5,7 +5,7 @@ export type Position = {
 }
 
 export type Path = {
-    topic: string;
+    topic: string | undefined;
     positions: Position[];
     // TODO: add colour & thickness properties
 }
