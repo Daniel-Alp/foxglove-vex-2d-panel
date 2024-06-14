@@ -13,6 +13,9 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
 
       }
     }
+
+    context.watch("topics");
+    context.watch("currentFrame");
   }, [context]);
 
   useEffect(() => {
@@ -30,4 +33,4 @@ export function initVex2DPanel(context: PanelExtensionContext): () => void {
   return () => {
     ReactDOM.unmountComponentAtNode(context.panelElement);
   };
-}; 
+} 
