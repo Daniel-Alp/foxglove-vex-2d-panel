@@ -14,6 +14,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     if (Object.keys(context.initialState as object).length === 0) {
       return {paths: []};
     }
+
     return context.initialState as PanelState;
   });
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
@@ -109,6 +110,19 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
   }, [panelState]);
 
   useEffect(() => {
+    context.saveState(panelState);
+    setPanelState(
+      produce<PanelState>(draft => {
+        // Messages are already sorted by receive time
+        messages?.forEach(messageEvent => {
+          draft.paths.forEach(path => {
+            if (path.topic === messageEvent.topic) {
+              path.positions.push(messageEvent.message);
+            }
+          })
+        });
+      })
+    );   
   }, [messages]);
 
   useLayoutEffect(() => {
@@ -125,8 +139,17 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     renderDone?.();
   }, [renderDone]);
 
+  const listItems = panelState.paths.map(path => 
+    <li style={{fontSize: 20}}>
+      <h1>Topic: {path.topic}</h1>
+      Number of messages: {path.positions.length}
+    </li>
+  );
+
   return (
-    <></>
+    <div style={{padding: "1rem"}}>
+      <ul style={{listStyleType: "none"}}>{listItems}</ul>
+    </div>
   );
 }
 
