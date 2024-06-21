@@ -91,7 +91,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
       }
     }
     context.updatePanelSettingsEditor(panelSettings);
-  }, [topics])
+  }, [topics, panelState])
 
   useEffect(() => {
     context.saveState(panelState);    
