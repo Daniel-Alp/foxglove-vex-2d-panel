@@ -5,21 +5,21 @@ import { PanelState, Position } from "./state";
 import { produce } from "immer";
 
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
-  const [topics, setTopics] = useState<Immutable<Topic[]> | undefined>();
+  const [topics, setTopics] = useState<Immutable<Topic[]> | undefined>()
   const [panelState, setPanelState] = useState<PanelState>(() => {
     // Initial state is {} if uninitialised
     if (Object.keys(context.initialState as object).length === 0) {
-      return {paths: []};
+      return {paths: []}
     }
 
-    return context.initialState as PanelState;
-  });
+    return context.initialState as PanelState
+  })
 
-  const positionTopics = useMemo(() => (topics ?? []).filter(topic => topic.schemaName === "odometry"), [topics]);
+  const positionTopics = useMemo(() => (topics ?? []).filter(topic => topic.schemaName === "odometry"), [topics])
 
   useEffect(() => {
     context.saveState(panelState);    
-    const options = positionTopics.map(topic => ({value: topic.name, label: topic.name}));
+    const options = positionTopics.map(topic => ({value: topic.name, label: topic.name}))
 
     const children: SettingsTreeChildren = Object.fromEntries(
       panelState.paths.map((path, index) => [
@@ -45,7 +45,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
           label: path.topic ?? `Path ${index + 1}`
         }
       ])  
-    );
+    )
 
     const panelSettings: SettingsTree = {
       nodes: {
@@ -71,38 +71,38 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
               case "perform-node-action":
                 switch (payload.id) {
                   case "add-path":
-                    draft.paths.push({topic: undefined, positions: []});
-                    break;
+                    draft.paths.push({topic: undefined, positions: []})
+                    break
                   case "delete-path":
-                    const index = Number(payload.path[1]);
-                    draft.paths.splice(index, 1);
-                    break;
+                    const index = Number(payload.path[1])
+                    draft.paths.splice(index, 1)
+                    break
                 }
-                break;
+                break
               case "update":
                 if (payload.path[0] === "paths") {
-                  const index = Number(payload.path[1]);
-                  draft.paths[index] = {topic: payload.value as string, positions: []};
+                  const index = Number(payload.path[1])
+                  draft.paths[index] = {topic: payload.value as string, positions: []}
                 }
-                break;
+                break
             }
           })
-        );
+        )
       }
     }
     context.updatePanelSettingsEditor(panelSettings);
-  }, [panelState, topics]);
+  }, [topics])
 
   useEffect(() => {
     context.saveState(panelState);    
-    const subscriptions: Subscription[] = [];
+    const subscriptions: Subscription[] = []
     panelState.paths.forEach(path => {
       if (path.topic) {
-        subscriptions.push({topic: path.topic});
+        subscriptions.push({topic: path.topic})
       }
-    });
+    })
     context.subscribe(subscriptions);
-  }, [panelState]);
+  }, [panelState])
 
   useLayoutEffect(() => {
     context.onRender = (renderState, done) => {
@@ -115,7 +115,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
           newMessages?.forEach(messageEvent => {
             draft.paths.forEach(path => {
               if (path.topic === messageEvent.topic) {
-                path.positions.push(messageEvent.message);
+                path.positions.push(messageEvent.message)
               }
             })
           });
@@ -143,9 +143,9 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
 }
 
 export function initVex2DPanel(context: PanelExtensionContext): () => void {
-  ReactDOM.render(<Vex2DPanel context={context} />, context.panelElement);
+  ReactDOM.render(<Vex2DPanel context={context} />, context.panelElement)
 
   return () => {
-    ReactDOM.unmountComponentAtNode(context.panelElement);
+    ReactDOM.unmountComponentAtNode(context.panelElement)
   };
 } 
