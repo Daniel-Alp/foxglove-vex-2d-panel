@@ -4,11 +4,8 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { PanelState, Position } from "./state";
 import { produce } from "immer";
 
-type PositionMessage = MessageEvent<Position>;
-
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<Immutable<Topic[]> | undefined>();
-  const [messages, setMessages] = useState<PositionMessage[]>();
   const [panelState, setPanelState] = useState<PanelState>(() => {
     // Initial state is {} if uninitialised
     if (Object.keys(context.initialState as object).length === 0) {
@@ -17,7 +14,6 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
 
     return context.initialState as PanelState;
   });
-  const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
 
   const positionTopics = useMemo(() => (topics ?? []).filter(topic => topic.schemaName === "odometry"), [topics]);
 
@@ -94,9 +90,8 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
         );
       }
     }
-
     context.updatePanelSettingsEditor(panelSettings);
-  }, [context, panelState, topics]);
+  }, [panelState, topics]);
 
   useEffect(() => {
     context.saveState(panelState);    
@@ -109,35 +104,29 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     context.subscribe(subscriptions);
   }, [panelState]);
 
-  useEffect(() => {
-    context.saveState(panelState);
-    setPanelState(
-      produce<PanelState>(draft => {
-        // Messages are already sorted by receive time
-        messages?.forEach(messageEvent => {
-          draft.paths.forEach(path => {
-            if (path.topic === messageEvent.topic) {
-              path.positions.push(messageEvent.message);
-            }
-          })
-        });
-      })
-    );   
-  }, [messages]);
-
   useLayoutEffect(() => {
     context.onRender = (renderState, done) => {
-      setRenderDone(() => done);
       setTopics(renderState.topics);
-      setMessages(renderState.currentFrame as PositionMessage[]);
+
+      const newMessages = renderState.currentFrame as MessageEvent<Position>[];
+      setPanelState(
+        produce<PanelState>(draft => {
+          // Messages are already sorted by receive time
+          newMessages?.forEach(messageEvent => {
+            draft.paths.forEach(path => {
+              if (path.topic === messageEvent.topic) {
+                path.positions.push(messageEvent.message);
+              }
+            })
+          });
+        })
+      );
+
+      done();
     }
     context.watch("topics");
     context.watch("currentFrame");
   }, [context]);
-
-  useEffect(() => {
-    renderDone?.();
-  }, [renderDone]);
 
   const listItems = panelState.paths.map(path => 
     <li style={{fontSize: 20}}>
