@@ -1,8 +1,35 @@
 import ReactDOM from "react-dom";
 import { Immutable, MessageEvent, PanelExtensionContext, SettingsTree, SettingsTreeChildren, Subscription, Topic } from "@foxglove/extension";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PanelState, Position } from "./state";
 import { produce } from "immer";
+
+async function drawOnCanvas(panelState: PanelState, canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext("2d")
+
+  if (!ctx) {
+    return
+  }
+
+  ctx.fillStyle = "white"
+  ctx.fillRect(0,0,480,480);
+
+  ctx.strokeStyle = "black"
+  ctx.lineWidth = 2.5
+  ctx.lineCap = "round"
+
+  panelState.paths.forEach(path => {
+    ctx.beginPath()
+    path.positions.forEach((pos, index) => {
+      if (index === 0) {
+        ctx.moveTo(pos.x, pos.y)
+      } else {
+        ctx.lineTo(pos.x, pos.y)
+      }
+    });
+    ctx.stroke()
+  })
+}
 
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<Immutable<Topic[]> | undefined>()
@@ -14,6 +41,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
 
     return context.initialState as PanelState
   })
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const positionTopics = useMemo(() => (topics ?? []).filter(topic => topic.schemaName === "odometry"), [topics])
 
@@ -102,6 +130,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
       }
     })
     context.subscribe(subscriptions);
+    drawOnCanvas(panelState, canvasRef.current!)
   }, [panelState])
 
   useLayoutEffect(() => {
@@ -128,16 +157,13 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     context.watch("currentFrame");
   }, [context]);
 
-  const listItems = panelState.paths.map(path => 
-    <li style={{fontSize: 20}}>
-      <h1>Topic: {path.topic}</h1>
-      Number of messages: {path.positions.length}
-    </li>
-  );
-
   return (
     <div style={{padding: "1rem"}}>
-      <ul style={{listStyleType: "none"}}>{listItems}</ul>
+      <canvas 
+        width={480} 
+        height={480} 
+        ref={canvasRef} 
+        />
     </div>
   );
 }
