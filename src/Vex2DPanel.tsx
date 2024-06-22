@@ -3,40 +3,14 @@ import { Immutable, MessageEvent, PanelExtensionContext, SettingsTree, SettingsT
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PanelState, Position } from "./state";
 import { produce } from "immer";
-
-async function drawOnCanvas(panelState: PanelState, canvas: HTMLCanvasElement) {
-  const ctx = canvas.getContext("2d")
-
-  if (!ctx) {
-    return
-  }
-
-  ctx.fillStyle = "white"
-  ctx.fillRect(0,0,480,480);
-
-  ctx.strokeStyle = "black"
-  ctx.lineWidth = 2.5
-  ctx.lineCap = "round"
-
-  panelState.paths.forEach(path => {
-    ctx.beginPath()
-    path.positions.forEach((pos, index) => {
-      if (index === 0) {
-        ctx.moveTo(pos.x, pos.y)
-      } else {
-        ctx.lineTo(pos.x, pos.y)
-      }
-    });
-    ctx.stroke()
-  })
-}
+import { drawOnCanvas } from "./pathCanvas";
 
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<Immutable<Topic[]> | undefined>()
   const [panelState, setPanelState] = useState<PanelState>(() => {
     // Initial state is {} if uninitialised
     if (Object.keys(context.initialState as object).length === 0) {
-      return {paths: []}
+      return {paths: [], viewCorners: {x1: -240, y1: -240, x2: 240, y2: 240}}
     }
 
     return context.initialState as PanelState
