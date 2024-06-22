@@ -5,6 +5,10 @@ import { PanelState, Position } from "./state";
 import { produce } from "immer";
 import { drawOnCanvas } from "./pathCanvas";
 
+function linearInterpolate(start: number, end: number, t: number) {
+  return start + t * (end - start)
+}
+
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<Immutable<Topic[]> | undefined>()
   const [panelState, setPanelState] = useState<PanelState>(() => {
@@ -137,6 +141,24 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
         width={480} 
         height={480} 
         ref={canvasRef} 
+        onWheel={(event) => {
+          const boundingRect = event.currentTarget.getBoundingClientRect()
+          const xPanel = event.clientX - boundingRect.left
+          const yPanel = boundingRect.height - (event.clientY - boundingRect.top)
+
+          const xView = linearInterpolate(panelState.viewCorners.x1, panelState.viewCorners.x2, xPanel / boundingRect.width)
+          const yView = linearInterpolate(panelState.viewCorners.y1, panelState.viewCorners.y2, yPanel / boundingRect.height)
+          const t = Math.sign(event.deltaY) * -0.1
+
+          setPanelState(
+            produce<PanelState>(draft => {
+              draft.viewCorners.x1 = linearInterpolate(draft.viewCorners.x1, xView, t)
+              draft.viewCorners.y1 = linearInterpolate(draft.viewCorners.y1, yView, t)
+              draft.viewCorners.x2 = linearInterpolate(draft.viewCorners.x2, xView, t)
+              draft.viewCorners.y2 = linearInterpolate(draft.viewCorners.y2, yView, t)
+            })
+          )
+        }}
         />
     </div>
   );
