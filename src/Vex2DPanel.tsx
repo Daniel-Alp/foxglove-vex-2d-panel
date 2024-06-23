@@ -1,6 +1,6 @@
 import ReactDOM from "react-dom";
-import { Immutable, MessageEvent, PanelExtensionContext, SettingsTree, SettingsTreeChildren, Subscription, Topic } from "@foxglove/extension";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Immutable, MessageEvent, PanelExtensionContext, SettingsTree, SettingsTreeAction, SettingsTreeChildren, Subscription, Topic } from "@foxglove/extension";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PanelState, Position } from "./state";
 import { produce } from "immer";
 import { drawOnCanvas } from "./pathCanvas";
@@ -10,7 +10,7 @@ function linearInterpolate(start: number, end: number, t: number) {
 }
 
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
-  const [topics, setTopics] = useState<Immutable<Topic[]> | undefined>()
+  const [topics, setTopics] = useState<Immutable<Topic[]>>()
   const [panelState, setPanelState] = useState<PanelState>(() => {
     // Initial state is {} if uninitialised
     if (Object.keys(context.initialState as object).length === 0) {
@@ -23,6 +23,33 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const positionTopics = useMemo(() => (topics ?? []).filter(topic => topic.schemaName === "odometry"), [topics])
+
+  const actionHandler = useCallback((settingsTreeAction: SettingsTreeAction) => {
+    setPanelState(
+      produce<PanelState>(draft => {
+        const {action, payload} = settingsTreeAction;
+        switch (action) {
+          case "perform-node-action":
+            switch (payload.id) {
+              case "add-path":
+                draft.paths.push({topic: undefined, positions: []})
+                break
+              case "delete-path":
+                const index = Number(payload.path[1])
+                draft.paths.splice(index, 1)
+                break
+            }
+            break
+          case "update":
+            if (payload.path[0] === "paths") {
+              const index = Number(payload.path[1])
+              draft.paths[index] = {topic: payload.value as string, positions: []}
+            }
+            break
+        }
+      })
+    )
+  }, [context])
 
   useEffect(() => {
     context.saveState(panelState);    
@@ -56,6 +83,17 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
 
     const panelSettings: SettingsTree = {
       nodes: {
+        // general: {
+        //   fields: {
+        //     topic: {
+        //       label: "Background",
+        //       input: "select",
+        //       options,
+        //       // value: path.topic
+        //     }
+        //   },
+        //   label: "General"
+        // },
         paths: {
           actions: [
             {
@@ -68,34 +106,9 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
           ],
           children,
           label: "Paths"
-        },
+        }
       },
-      actionHandler: (settingsTreeAction) => {
-        setPanelState(
-          produce<PanelState>(draft => {
-            const {action, payload} = settingsTreeAction;
-            switch (action) {
-              case "perform-node-action":
-                switch (payload.id) {
-                  case "add-path":
-                    draft.paths.push({topic: undefined, positions: []})
-                    break
-                  case "delete-path":
-                    const index = Number(payload.path[1])
-                    draft.paths.splice(index, 1)
-                    break
-                }
-                break
-              case "update":
-                if (payload.path[0] === "paths") {
-                  const index = Number(payload.path[1])
-                  draft.paths[index] = {topic: payload.value as string, positions: []}
-                }
-                break
-            }
-          })
-        )
-      }
+      actionHandler
     }
     context.updatePanelSettingsEditor(panelSettings);
   }, [topics, panelState])

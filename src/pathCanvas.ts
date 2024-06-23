@@ -1,9 +1,5 @@
 import { PanelState } from "./state";
 
-//  TODO
-//  - detect resizing of canvas element
-//  - detect zoom, drag
-
 export async function drawOnCanvas(panelState: PanelState, canvas: HTMLCanvasElement) {  
   const {paths, viewCorners} = panelState
 
@@ -26,7 +22,7 @@ export async function drawOnCanvas(panelState: PanelState, canvas: HTMLCanvasEle
   ctx.fillRect(viewCorners.x1, viewCorners.y1, viewWidth, viewHeight);
 
   ctx.strokeStyle = "black"
-  ctx.lineWidth = 1.5 * viewWidth/canvas.width // Line is same thickness regardless of zoom
+  ctx.lineWidth = 2 * viewWidth/canvas.width // Line is same thickness regardless of zoom
   ctx.lineCap = "round"
 
   paths.forEach(path => {
