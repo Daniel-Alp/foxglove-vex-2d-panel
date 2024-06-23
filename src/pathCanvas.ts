@@ -26,10 +26,11 @@ export async function drawOnCanvas(
 
   ctx.fillStyle = "black";
   ctx.strokeStyle = "black";
-  ctx.lineWidth = (2 * viewWidth) / canvas.width; // Line is same thickness regardless of zoom
+  ctx.lineWidth = 2 * (viewWidth / canvas.width); // Line is same thickness regardless of zoom
   ctx.lineCap = "round";
 
-  paths.forEach((path) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  paths?.forEach((path) => {
     ctx.beginPath();
     path.positions.forEach((pos, index) => {
       if (index === 0) {
@@ -42,9 +43,10 @@ export async function drawOnCanvas(
     ctx.closePath();
 
     ctx.beginPath();
-    path.positions.forEach((pos) => {
+    path.positions.forEach((pos, index) => {
       ctx.moveTo(pos.x, pos.y);
-      ctx.arc(pos.x, pos.y, (5 * viewWidth) / canvas.width, 0, 2 * Math.PI);
+      const radius = index === path.positions.length - 1 ? 10 : 5;
+      ctx.arc(pos.x, pos.y, radius * (viewWidth / canvas.width), 0, 2 * Math.PI);
     });
     ctx.fill();
     ctx.closePath();

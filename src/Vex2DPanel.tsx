@@ -181,8 +181,8 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     const boundingRect = e.currentTarget.getBoundingClientRect();
     const { x1, y1, x2, y2 } = panelState.viewCorners;
 
-    const viewMovementX = (-e.movementX / boundingRect.width) * (x2 - x1);
-    const viewMovementY = (e.movementY / boundingRect.height) * (y2 - y1);
+    const viewMovementX = -e.movementX * ((x2 - x1) / boundingRect.width);
+    const viewMovementY = e.movementY * ((y2 - y1) / boundingRect.height);
 
     setPanelState({
       ...panelState,
