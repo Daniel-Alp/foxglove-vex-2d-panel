@@ -1,59 +1,74 @@
-import ReactDOM from "react-dom";
-import { Immutable, MessageEvent, PanelExtensionContext, SettingsTree, SettingsTreeAction, SettingsTreeChildren, Subscription, Topic } from "@foxglove/extension";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { PanelState, Position } from "./state";
+import {
+  Immutable,
+  MessageEvent,
+  PanelExtensionContext,
+  SettingsTree,
+  SettingsTreeAction,
+  SettingsTreeChildren,
+  Subscription,
+  Topic,
+} from "@foxglove/extension";
 import { produce } from "immer";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
+
 import { drawOnCanvas } from "./pathCanvas";
+import { PanelState, Position } from "./state";
 
 function linearInterpolate(start: number, end: number, t: number) {
-  return start + t * (end - start)
+  return start + t * (end - start);
 }
 
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
-  const [topics, setTopics] = useState<Immutable<Topic[]>>()
+  const [topics, setTopics] = useState<Immutable<Topic[]>>();
   const [panelState, setPanelState] = useState<PanelState>(() => {
     // Initial state is {} if uninitialised
     if (Object.keys(context.initialState as object).length === 0) {
-      return {paths: [], viewCorners: {x1: -240, y1: -240, x2: 240, y2: 240}}
+      return { paths: [], viewCorners: { x1: -240, y1: -240, x2: 240, y2: 240 } };
     }
 
-    return context.initialState as PanelState
-  })
-  const [dragging, setDragging] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+    return context.initialState as PanelState;
+  });
+  const [dragging, setDragging] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const positionTopics = useMemo(() => (topics ?? []).filter(topic => topic.schemaName === "odometry"), [topics])
+  const positionTopics = useMemo(
+    () => (topics ?? []).filter((topic) => topic.schemaName === "odometry"),
+    [topics],
+  );
 
   const actionHandler = useCallback((settingsTreeAction: SettingsTreeAction) => {
     setPanelState(
-      produce<PanelState>(draft => {
-        const {action, payload} = settingsTreeAction;
+      produce<PanelState>((draft) => {
+        const { action, payload } = settingsTreeAction;
         switch (action) {
           case "perform-node-action":
             switch (payload.id) {
               case "add-path":
-                draft.paths.push({topic: undefined, positions: []})
-                break
+                draft.paths.push({ topic: undefined, positions: [] });
+                break;
               case "delete-path":
-                const index = Number(payload.path[1])
-                draft.paths.splice(index, 1)
-                break
+                draft.paths.splice(Number(payload.path[1]), 1);
+                break;
             }
-            break
-          case "update":
+            break;
+          case "update": {
             if (payload.path[0] === "paths") {
-              const index = Number(payload.path[1])
-              draft.paths[index] = {topic: payload.value as string, positions: []}
+              draft.paths[Number(payload.path[1])] = {
+                topic: payload.value as string,
+                positions: [],
+              };
             }
-            break
+            break;
+          }
         }
-      })
-    )
-  }, [context])
+      }),
+    );
+  }, []);
 
   useEffect(() => {
-    context.saveState(panelState);    
-    const options = positionTopics.map(topic => ({value: topic.name, label: topic.name}))
+    context.saveState(panelState);
+    const options = positionTopics.map((topic) => ({ value: topic.name, label: topic.name }));
 
     const children: SettingsTreeChildren = Object.fromEntries(
       panelState.paths.map((path, index) => [
@@ -65,35 +80,24 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
               id: "delete-path",
               label: "Delete path",
               display: "inline",
-              icon: "Clear"
-            }
+              icon: "Clear",
+            },
           ],
           fields: {
             topic: {
               label: "Topic",
               input: "select",
               options,
-              value: path.topic
-            }
+              value: path.topic,
+            },
           },
-          label: path.topic ?? `Path ${index + 1}`
-        }
-      ])  
-    )
+          label: path.topic ?? `Path ${index + 1}`,
+        },
+      ]),
+    );
 
     const panelSettings: SettingsTree = {
       nodes: {
-        // general: {
-        //   fields: {
-        //     topic: {
-        //       label: "Background",
-        //       input: "select",
-        //       options,
-        //       // value: path.topic
-        //     }
-        //   },
-        //   label: "General"
-        // },
         paths: {
           actions: [
             {
@@ -101,29 +105,29 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
               id: "add-path",
               label: "Add path",
               display: "inline",
-              icon: "Add"
-            }
+              icon: "Add",
+            },
           ],
           children,
-          label: "Paths"
-        }
+          label: "Paths",
+        },
       },
-      actionHandler
-    }
+      actionHandler,
+    };
     context.updatePanelSettingsEditor(panelSettings);
-  }, [topics, panelState])
+  }, [topics, panelState, context, positionTopics, actionHandler]);
 
   useEffect(() => {
-    context.saveState(panelState);    
-    const subscriptions: Subscription[] = []
-    panelState.paths.forEach(path => {
+    context.saveState(panelState);
+    const subscriptions: Subscription[] = [];
+    panelState.paths.forEach((path) => {
       if (path.topic) {
-        subscriptions.push({topic: path.topic})
+        subscriptions.push({ topic: path.topic });
       }
-    })
+    });
     context.subscribe(subscriptions);
-    drawOnCanvas(panelState, canvasRef.current!)
-  }, [panelState])
+    void drawOnCanvas(panelState, canvasRef.current!);
+  }, [context, panelState]);
 
   useLayoutEffect(() => {
     context.onRender = (renderState, done) => {
@@ -131,78 +135,95 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
 
       const newMessages = renderState.currentFrame as MessageEvent<Position>[];
       setPanelState(
-        produce<PanelState>(draft => {
+        produce<PanelState>((draft) => {
           // Messages are already sorted by receive time
-          newMessages?.forEach(messageEvent => {
-            draft.paths.forEach(path => {
+          newMessages.forEach((messageEvent) => {
+            draft.paths.forEach((path) => {
               if (path.topic === messageEvent.topic) {
-                path.positions.push(messageEvent.message)
+                path.positions.push(messageEvent.message);
               }
-            })
+            });
           });
-        })
+        }),
       );
 
       done();
-    }
+    };
     context.watch("topics");
     context.watch("currentFrame");
   }, [context]);
 
+  const handleOnWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    const boundingRect = e.currentTarget.getBoundingClientRect();
+    const xCanvas = e.clientX - boundingRect.left;
+    const yCanvas = boundingRect.height - (e.clientY - boundingRect.top);
+    const { x1, y1, x2, y2 } = panelState.viewCorners;
+
+    const xView = linearInterpolate(x1, x2, xCanvas / boundingRect.width);
+    const yView = linearInterpolate(y1, y2, yCanvas / boundingRect.height);
+    const t = Math.sign(e.deltaY) * -0.1;
+
+    setPanelState({
+      ...panelState,
+      viewCorners: {
+        x1: linearInterpolate(x1, xView, t),
+        y1: linearInterpolate(y1, yView, t),
+        x2: linearInterpolate(x2, xView, t),
+        y2: linearInterpolate(y2, yView, t),
+      },
+    });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!dragging) {
+      return;
+    }
+    const boundingRect = e.currentTarget.getBoundingClientRect();
+    const { x1, y1, x2, y2 } = panelState.viewCorners;
+
+    const viewMovementX = (-e.movementX / boundingRect.width) * (x2 - x1);
+    const viewMovementY = (e.movementY / boundingRect.height) * (y2 - y1);
+
+    setPanelState({
+      ...panelState,
+      viewCorners: {
+        x1: x1 + viewMovementX,
+        y1: y1 + viewMovementY,
+        x2: x2 + viewMovementX,
+        y2: y2 + viewMovementY,
+      },
+    });
+  };
+
   return (
-    <div style={{width: "100%", height: "100%"}}>
-      <canvas 
-        style={{width: "100%", height: "100%", objectFit:"contain"}}
+    <div style={{ width: "100%", height: "100%" }}>
+      <canvas
+        style={{ width: "100%", height: "100%", objectFit: "contain" }}
         width={1080}
         height={1080}
-        ref={canvasRef} 
-        onWheel={event => {
-          const boundingRect = event.currentTarget.getBoundingClientRect()
-          const xPanel = event.clientX - boundingRect.left
-          const yPanel = boundingRect.height - (event.clientY - boundingRect.top)
-
-          const xView = linearInterpolate(panelState.viewCorners.x1, panelState.viewCorners.x2, xPanel / boundingRect.width)
-          const yView = linearInterpolate(panelState.viewCorners.y1, panelState.viewCorners.y2, yPanel / boundingRect.height)
-          const t = Math.sign(event.deltaY) * -0.1
-
-          setPanelState({
-            ...panelState, 
-            viewCorners: {
-              x1: linearInterpolate(panelState.viewCorners.x1, xView, t),
-              y1: linearInterpolate(panelState.viewCorners.y1, yView, t),
-              x2: linearInterpolate(panelState.viewCorners.x2, xView, t),
-              y2: linearInterpolate(panelState.viewCorners.y2, yView, t)
-            }
-          })
+        ref={canvasRef}
+        onWheel={handleOnWheel}
+        onMouseMove={handleMouseMove}
+        onMouseDown={() => {
+          setDragging(true);
         }}
-        onMouseDown={() => setDragging(true)}
-        onMouseUp={() => setDragging(false)}
-        onMouseLeave={() => setDragging(false)}
-        onMouseMove={event => {
-          if (!dragging) {
-            return
-          }
-          const boundingRect = event.currentTarget.getBoundingClientRect()
-          const viewMovementX = -1 * event.movementX / boundingRect.width * (panelState.viewCorners.x2 - panelState.viewCorners.x1)
-          const viewMovementY = event.movementY / boundingRect.height * (panelState.viewCorners.y2 - panelState.viewCorners.y1)
-          setPanelState(
-            produce<PanelState>(draft => {
-              draft.viewCorners.x1 += viewMovementX
-              draft.viewCorners.y1 += viewMovementY
-              draft.viewCorners.x2 += viewMovementX
-              draft.viewCorners.y2 += viewMovementY
-            })
-          )
+        onMouseUp={() => {
+          setDragging(false);
         }}
-        />
+        onMouseLeave={() => {
+          setDragging(false);
+        }}
+      />
     </div>
   );
 }
 
 export function initVex2DPanel(context: PanelExtensionContext): () => void {
-  ReactDOM.render(<Vex2DPanel context={context} />, context.panelElement)
+  // eslint-disable-next-line react/no-deprecated
+  ReactDOM.render(<Vex2DPanel context={context} />, context.panelElement);
 
   return () => {
-    ReactDOM.unmountComponentAtNode(context.panelElement)
+    // eslint-disable-next-line react/no-deprecated
+    ReactDOM.unmountComponentAtNode(context.panelElement);
   };
-} 
+}
