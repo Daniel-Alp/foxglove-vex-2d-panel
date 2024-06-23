@@ -19,6 +19,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
 
     return context.initialState as PanelState
   })
+  const [dragging, setDragging] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const positionTopics = useMemo(() => (topics ?? []).filter(topic => topic.schemaName === "odometry"), [topics])
@@ -136,12 +137,13 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
   }, [context]);
 
   return (
-    <div style={{padding: "1rem"}}>
+    <div style={{width: "100%", height: "100%"}}>
       <canvas 
-        width={480} 
-        height={480} 
+        style={{width: "100%", height: "100%", objectFit:"contain"}}
+        width={1080}
+        height={1080}
         ref={canvasRef} 
-        onWheel={(event) => {
+        onWheel={event => {
           const boundingRect = event.currentTarget.getBoundingClientRect()
           const xPanel = event.clientX - boundingRect.left
           const yPanel = boundingRect.height - (event.clientY - boundingRect.top)
@@ -150,12 +152,32 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
           const yView = linearInterpolate(panelState.viewCorners.y1, panelState.viewCorners.y2, yPanel / boundingRect.height)
           const t = Math.sign(event.deltaY) * -0.1
 
+          setPanelState({
+            ...panelState, 
+            viewCorners: {
+              x1: linearInterpolate(panelState.viewCorners.x1, xView, t),
+              y1: linearInterpolate(panelState.viewCorners.y1, yView, t),
+              x2: linearInterpolate(panelState.viewCorners.x2, xView, t),
+              y2: linearInterpolate(panelState.viewCorners.y2, yView, t)
+            }
+          })
+        }}
+        onMouseDown={() => setDragging(true)}
+        onMouseUp={() => setDragging(false)}
+        onMouseLeave={() => setDragging(false)}
+        onMouseMove={event => {
+          if (!dragging) {
+            return
+          }
+          const boundingRect = event.currentTarget.getBoundingClientRect()
+          const viewMovementX = -1 * event.movementX / boundingRect.width * (panelState.viewCorners.x2 - panelState.viewCorners.x1)
+          const viewMovementY = event.movementY / boundingRect.height * (panelState.viewCorners.y2 - panelState.viewCorners.y1)
           setPanelState(
             produce<PanelState>(draft => {
-              draft.viewCorners.x1 = linearInterpolate(draft.viewCorners.x1, xView, t)
-              draft.viewCorners.y1 = linearInterpolate(draft.viewCorners.y1, yView, t)
-              draft.viewCorners.x2 = linearInterpolate(draft.viewCorners.x2, xView, t)
-              draft.viewCorners.y2 = linearInterpolate(draft.viewCorners.y2, yView, t)
+              draft.viewCorners.x1 += viewMovementX
+              draft.viewCorners.y1 += viewMovementY
+              draft.viewCorners.x2 += viewMovementX
+              draft.viewCorners.y2 += viewMovementY
             })
           )
         }}
