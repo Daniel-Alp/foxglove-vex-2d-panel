@@ -21,6 +21,7 @@ export async function drawOnCanvas(panelState: PanelState, canvas: HTMLCanvasEle
   ctx.fillStyle = "white"
   ctx.fillRect(viewCorners.x1, viewCorners.y1, viewWidth, viewHeight);
 
+  ctx.fillStyle = "black"
   ctx.strokeStyle = "black"
   ctx.lineWidth = 2 * viewWidth/canvas.width // Line is same thickness regardless of zoom
   ctx.lineCap = "round"
@@ -35,6 +36,15 @@ export async function drawOnCanvas(panelState: PanelState, canvas: HTMLCanvasEle
       }
     });
     ctx.stroke()
+    ctx.closePath()
+
+    ctx.beginPath()
+    path.positions.forEach(pos => {
+      ctx.moveTo(pos.x, pos.y)
+      ctx.arc(pos.x, pos.y, 5 * viewWidth/canvas.width, 0, 2 * Math.PI)
+    });
+    ctx.fill()
+    ctx.closePath()
   })
 
   ctx.resetTransform()
