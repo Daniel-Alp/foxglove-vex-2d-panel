@@ -5,14 +5,13 @@ export function drawOnCanvas(
   viewCorners: ViewCorners,
   canvas: HTMLCanvasElement,
 ): void {
-  const viewWidth = viewCorners.x2 - viewCorners.x1;
-  const viewHeight = viewCorners.y2 - viewCorners.y1;
-
-  const ctx = canvas.getContext("2d");
-
+  const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) {
     return;
   }
+
+  const viewWidth = viewCorners.x2 - viewCorners.x1;
+  const viewHeight = viewCorners.y2 - viewCorners.y1;
 
   // Set the bottom left corner to be (0,0) and scale to match view width and height
   ctx.translate(0, canvas.height);
@@ -28,28 +27,35 @@ export function drawOnCanvas(
   ctx.lineWidth = 2 * (viewWidth / canvas.width); // Line is same thickness regardless of zoom
   ctx.lineCap = "round";
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  paths?.forEach((path) => {
-    ctx.beginPath();
-    path.positions.forEach((pos, index) => {
-      if (index === 0) {
-        ctx.moveTo(pos.x, pos.y);
-      } else {
-        ctx.lineTo(pos.x, pos.y);
-      }
-    });
-    ctx.stroke();
-    ctx.closePath();
+  let posInView = true;
+  let prevPosInView = true;
 
+  // eslint-disable-next-line @typescript-eslint/prefer-for-of
+  for (let i = 0; i < paths.length; i++) {
+    const path = paths[i];
+
+    const startPos = path.positions[0];
+    if (!startPos) {
+      continue;
+    }
     ctx.beginPath();
-    path.positions.forEach((pos, index) => {
-      ctx.moveTo(pos.x, pos.y);
-      const radius = index === path.positions.length - 1 ? 10 : 5;
-      ctx.arc(pos.x, pos.y, radius * (viewWidth / canvas.width), 0, 2 * Math.PI);
-    });
-    ctx.fill();
-    ctx.closePath();
-  });
+    ctx.moveTo(startPos.x, startPos.y);
+
+    for (let j = 1; j < path.positions.length; j++) {
+      const pos = path.positions[j]!;
+      const { x, y } = pos;
+      posInView =
+        x > viewCorners.x1 && x < viewCorners.x2 && y > viewCorners.y1 && y < viewCorners.y2;
+      if (!posInView && !prevPosInView) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+      prevPosInView = posInView;
+    }
+
+    ctx.stroke();
+  }
 
   ctx.resetTransform();
 }
