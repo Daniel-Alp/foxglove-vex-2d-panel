@@ -34,15 +34,16 @@ export function drawOnCanvas(
   for (let i = 0; i < paths.length; i++) {
     const path = paths[i];
 
-    const startPos = path.positions[0];
-    if (!startPos) {
+    if (path.positions.length === 0) {
       continue;
     }
+
+    const startPos = path.positions[0];
     ctx.beginPath();
     ctx.moveTo(startPos.x, startPos.y);
 
     for (let j = 1; j < path.positions.length; j++) {
-      const pos = path.positions[j]!;
+      const pos = path.positions[j];
       const { x, y } = pos;
       posInView =
         x > viewCorners.x1 && x < viewCorners.x2 && y > viewCorners.y1 && y < viewCorners.y2;
