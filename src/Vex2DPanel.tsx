@@ -52,7 +52,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
                 break;
             }
             break;
-          case "update": {
+          case "update":
             if (payload.path[0] === "paths") {
               draft.paths[Number(payload.path[1])] = {
                 topic: payload.value as string,
@@ -60,7 +60,6 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
               };
             }
             break;
-          }
         }
       }),
     );
@@ -115,17 +114,14 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
       actionHandler,
     };
     context.updatePanelSettingsEditor(panelSettings);
-  }, [topics, panelState, context, positionTopics, actionHandler]);
+  }, [actionHandler, context, panelState, positionTopics]);
 
   useEffect(() => {
     context.saveState(panelState);
-    const subscriptions: Subscription[] = [];
-    panelState.paths.forEach((path) => {
-      if (path.topic) {
-        subscriptions.push({ topic: path.topic });
-      }
-    });
-    context.subscribe(subscriptions);
+    const subscriptions = panelState.paths
+      .filter((path) => path.topic)
+      .map((path) => ({ topic: path.topic }));
+    context.subscribe(subscriptions as Subscription[]);
     void drawOnCanvas(panelState, canvasRef.current!);
   }, [context, panelState]);
 
