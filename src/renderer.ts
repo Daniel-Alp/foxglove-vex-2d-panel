@@ -1,11 +1,10 @@
-import { PanelState } from "./state";
+import { Path, ViewCorners } from "./types";
 
 export async function drawOnCanvas(
-  panelState: PanelState,
+  paths: Path[],
+  viewCorners: ViewCorners,
   canvas: HTMLCanvasElement,
 ): Promise<void> {
-  const { paths, viewCorners } = panelState;
-
   const viewWidth = viewCorners.x2 - viewCorners.x1;
   const viewHeight = viewCorners.y2 - viewCorners.y1;
 

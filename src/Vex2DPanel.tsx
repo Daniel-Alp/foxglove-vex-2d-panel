@@ -12,8 +12,8 @@ import { produce } from "immer";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 
-import { drawOnCanvas } from "./pathCanvas";
-import { PanelState, Position } from "./state";
+import { drawOnCanvas } from "./renderer";
+import { PanelState, Path, Position, ViewCorners } from "./types";
 
 function linearInterpolate(start: number, end: number, t: number) {
   return start + t * (end - start);
@@ -21,13 +21,19 @@ function linearInterpolate(start: number, end: number, t: number) {
 
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<Immutable<Topic[]>>();
-  const [panelState, setPanelState] = useState<PanelState>(() => {
-    // Initial state is {} if uninitialised
-    if (Object.keys(context.initialState as object).length === 0) {
-      return { paths: [], viewCorners: { x1: -240, y1: -240, x2: 240, y2: 240 } };
+  const [paths, setPaths] = useState<Path[]>(() => {
+    if (JSON.stringify(context.initialState) === "{}") {
+      return [];
     }
-
-    return context.initialState as PanelState;
+    // When a new websocket connection is opened, restore only the topic names
+    const savedPaths = (context.initialState as PanelState).paths;
+    return savedPaths.map((path) => ({ topic: path.topic, positions: [] }));
+  });
+  const [viewCorners, setViewCorners] = useState<ViewCorners>({
+    x1: -72,
+    y1: -72,
+    x2: 72,
+    y2: 72,
   });
   const [dragging, setDragging] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -38,23 +44,23 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
   );
 
   const actionHandler = useCallback((settingsTreeAction: SettingsTreeAction) => {
-    setPanelState(
-      produce<PanelState>((draft) => {
+    setPaths(
+      produce<Path[]>((draft) => {
         const { action, payload } = settingsTreeAction;
         switch (action) {
           case "perform-node-action":
             switch (payload.id) {
               case "add-path":
-                draft.paths.push({ topic: undefined, positions: [] });
+                draft.push({ topic: undefined, positions: [] });
                 break;
               case "delete-path":
-                draft.paths.splice(Number(payload.path[1]), 1);
+                draft.splice(Number(payload.path[1]), 1);
                 break;
             }
             break;
           case "update":
             if (payload.path[0] === "paths") {
-              draft.paths[Number(payload.path[1])] = {
+              draft[Number(payload.path[1])] = {
                 topic: payload.value as string,
                 positions: [],
               };
@@ -66,11 +72,11 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
   }, []);
 
   useEffect(() => {
-    context.saveState(panelState);
+    context.saveState({ paths });
     const options = positionTopics.map((topic) => ({ value: topic.name, label: topic.name }));
 
     const children: SettingsTreeChildren = Object.fromEntries(
-      panelState.paths.map((path, index) => [
+      paths.map((path, index) => [
         `${index}`,
         {
           actions: [
@@ -114,27 +120,25 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
       actionHandler,
     };
     context.updatePanelSettingsEditor(panelSettings);
-  }, [actionHandler, context, panelState, positionTopics]);
+  }, [actionHandler, context, paths, positionTopics]);
 
   useEffect(() => {
-    context.saveState(panelState);
-    const subscriptions = panelState.paths
-      .filter((path) => path.topic)
-      .map((path) => ({ topic: path.topic }));
+    context.saveState({ paths });
+    const subscriptions = paths.filter((path) => path.topic).map((path) => ({ topic: path.topic }));
     context.subscribe(subscriptions as Subscription[]);
-    void drawOnCanvas(panelState, canvasRef.current!);
-  }, [context, panelState]);
+    void drawOnCanvas(paths, viewCorners, canvasRef.current!);
+  }, [context, paths, viewCorners]);
 
   useLayoutEffect(() => {
     context.onRender = (renderState, done) => {
       setTopics(renderState.topics);
 
-      const newMessages = renderState.currentFrame as MessageEvent<Position>[];
-      setPanelState(
-        produce<PanelState>((draft) => {
+      const newMessages = (renderState.currentFrame ?? []) as MessageEvent<Position>[];
+      setPaths(
+        produce<Path[]>((draft) => {
           // Messages are already sorted by receive time
           newMessages.forEach((messageEvent) => {
-            draft.paths.forEach((path) => {
+            draft.forEach((path) => {
               if (path.topic === messageEvent.topic) {
                 path.positions.push(messageEvent.message);
               }
@@ -153,20 +157,17 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     const boundingRect = e.currentTarget.getBoundingClientRect();
     const xCanvas = e.clientX - boundingRect.left;
     const yCanvas = boundingRect.height - (e.clientY - boundingRect.top);
-    const { x1, y1, x2, y2 } = panelState.viewCorners;
+    const { x1, y1, x2, y2 } = viewCorners;
 
     const xView = linearInterpolate(x1, x2, xCanvas / boundingRect.width);
     const yView = linearInterpolate(y1, y2, yCanvas / boundingRect.height);
     const t = Math.sign(e.deltaY) * -0.1;
 
-    setPanelState({
-      ...panelState,
-      viewCorners: {
-        x1: linearInterpolate(x1, xView, t),
-        y1: linearInterpolate(y1, yView, t),
-        x2: linearInterpolate(x2, xView, t),
-        y2: linearInterpolate(y2, yView, t),
-      },
+    setViewCorners({
+      x1: linearInterpolate(x1, xView, t),
+      y1: linearInterpolate(y1, yView, t),
+      x2: linearInterpolate(x2, xView, t),
+      y2: linearInterpolate(y2, yView, t),
     });
   };
 
@@ -175,19 +176,16 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
       return;
     }
     const boundingRect = e.currentTarget.getBoundingClientRect();
-    const { x1, y1, x2, y2 } = panelState.viewCorners;
+    const { x1, y1, x2, y2 } = viewCorners;
 
     const viewMovementX = -e.movementX * ((x2 - x1) / boundingRect.width);
     const viewMovementY = e.movementY * ((y2 - y1) / boundingRect.height);
 
-    setPanelState({
-      ...panelState,
-      viewCorners: {
-        x1: x1 + viewMovementX,
-        y1: y1 + viewMovementY,
-        x2: x2 + viewMovementX,
-        y2: y2 + viewMovementY,
-      },
+    setViewCorners({
+      x1: x1 + viewMovementX,
+      y1: y1 + viewMovementY,
+      x2: x2 + viewMovementX,
+      y2: y2 + viewMovementY,
     });
   };
 
