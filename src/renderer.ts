@@ -1,10 +1,10 @@
 import { Path, ViewCorners } from "./types";
 
-export async function drawOnCanvas(
+export function drawOnCanvas(
   paths: Path[],
   viewCorners: ViewCorners,
   canvas: HTMLCanvasElement,
-): Promise<void> {
+): void {
   const viewWidth = viewCorners.x2 - viewCorners.x1;
   const viewHeight = viewCorners.y2 - viewCorners.y1;
 

@@ -9,15 +9,11 @@ import {
   Topic,
 } from "@foxglove/extension";
 import { produce } from "immer";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import ReactDOM from "react-dom";
 
-import { drawOnCanvas } from "./renderer";
-import { PanelState, Path, Position, ViewCorners } from "./types";
-
-function linearInterpolate(start: number, end: number, t: number) {
-  return start + t * (end - start);
-}
+import { Canvas } from "./Canvas";
+import { PanelState, Path, Position } from "./types";
 
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<Immutable<Topic[]>>();
@@ -29,14 +25,6 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     const savedPaths = (context.initialState as PanelState).paths;
     return savedPaths.map((path) => ({ topic: path.topic, positions: [] }));
   });
-  const [viewCorners, setViewCorners] = useState<ViewCorners>({
-    x1: -72,
-    y1: -72,
-    x2: 72,
-    y2: 72,
-  });
-  const [dragging, setDragging] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const positionTopics = useMemo(
     () => (topics ?? []).filter((topic) => topic.schemaName === "odometry"),
@@ -126,8 +114,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     context.saveState({ paths });
     const subscriptions = paths.filter((path) => path.topic).map((path) => ({ topic: path.topic }));
     context.subscribe(subscriptions as Subscription[]);
-    void drawOnCanvas(paths, viewCorners, canvasRef.current!);
-  }, [context, paths, viewCorners]);
+  }, [context, paths]);
 
   useLayoutEffect(() => {
     context.onRender = (renderState, done) => {
@@ -153,63 +140,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     context.watch("currentFrame");
   }, [context]);
 
-  const handleOnWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-    const boundingRect = e.currentTarget.getBoundingClientRect();
-    const xCanvas = e.clientX - boundingRect.left;
-    const yCanvas = boundingRect.height - (e.clientY - boundingRect.top);
-    const { x1, y1, x2, y2 } = viewCorners;
-
-    const xView = linearInterpolate(x1, x2, xCanvas / boundingRect.width);
-    const yView = linearInterpolate(y1, y2, yCanvas / boundingRect.height);
-    const t = Math.sign(e.deltaY) * -0.1;
-
-    setViewCorners({
-      x1: linearInterpolate(x1, xView, t),
-      y1: linearInterpolate(y1, yView, t),
-      x2: linearInterpolate(x2, xView, t),
-      y2: linearInterpolate(y2, yView, t),
-    });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!dragging) {
-      return;
-    }
-    const boundingRect = e.currentTarget.getBoundingClientRect();
-    const { x1, y1, x2, y2 } = viewCorners;
-
-    const viewMovementX = -e.movementX * ((x2 - x1) / boundingRect.width);
-    const viewMovementY = e.movementY * ((y2 - y1) / boundingRect.height);
-
-    setViewCorners({
-      x1: x1 + viewMovementX,
-      y1: y1 + viewMovementY,
-      x2: x2 + viewMovementX,
-      y2: y2 + viewMovementY,
-    });
-  };
-
-  return (
-    <div style={{ width: "100%", height: "100%" }}>
-      <canvas
-        style={{ width: "100%", height: "100%", objectFit: "contain" }}
-        width={1080}
-        height={1080}
-        ref={canvasRef}
-        onWheel={handleOnWheel}
-        onMouseMove={handleMouseMove}
-        onMouseDown={() => {
-          setDragging(true);
-        }}
-        onMouseUp={() => {
-          setDragging(false);
-        }}
-        onMouseLeave={() => {
-          setDragging(false);
-        }}
-      />
-    </div>
-  );
+  return <Canvas paths={paths}></Canvas>;
 }
 
 export function initVex2DPanel(context: PanelExtensionContext): () => void {
