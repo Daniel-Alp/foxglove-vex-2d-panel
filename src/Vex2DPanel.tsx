@@ -21,9 +21,9 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     if (JSON.stringify(context.initialState) === "{}") {
       return [];
     }
-    // When a new websocket connection is opened, restore only the topic names
+    // When a new websocket connection is opened, restore only the topic names and colors
     const savedPaths = (context.initialState as PanelState).paths;
-    return savedPaths.map((path) => ({ topic: path.topic, positions: [] }));
+    return savedPaths.map((path) => ({ topic: path.topic, positions: [], color: path.color }));
   });
 
   const positionTopics = useMemo(
@@ -35,23 +35,28 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     setPaths(
       produce<Path[]>((draft) => {
         const { action, payload } = settingsTreeAction;
+        const index = Number(payload.path[1]);
+
         switch (action) {
           case "perform-node-action":
             switch (payload.id) {
               case "add-path":
-                draft.push({ topic: undefined, positions: [] });
+                draft.push({ topic: undefined, positions: [], color: "black" });
                 break;
               case "delete-path":
-                draft.splice(Number(payload.path[1]), 1);
+                draft.splice(index, 1);
                 break;
             }
             break;
           case "update":
-            if (payload.path[0] === "paths") {
-              draft[Number(payload.path[1])] = {
-                topic: payload.value as string,
-                positions: [],
-              };
+            // path[0] === "paths" always
+            switch (payload.path[2]) {
+              case "topic":
+                draft[index].topic = payload.value as string;
+                break;
+              case "color":
+                draft[index].color = payload.value as string;
+                break;
             }
             break;
         }
@@ -82,6 +87,11 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
               input: "select",
               options,
               value: path.topic,
+            },
+            color: {
+              label: "Color",
+              input: "rgb",
+              value: path.color,
             },
           },
           label: path.topic ?? `Path ${index + 1}`,

@@ -31,8 +31,6 @@ export function drawOnCanvas(
     //Image viewcorners are (-72, -72) and (72, 72)
     ctx.drawImage(field_img, -72, -72, 144, 144);
 
-    ctx.fillStyle = "black";
-    ctx.strokeStyle = "black";
     ctx.lineWidth = 2 * (viewWidth / canvas.width); // Line is same thickness regardless of zoom
     ctx.lineCap = "round";
 
@@ -46,6 +44,7 @@ export function drawOnCanvas(
       if (path.positions.length === 0) {
         continue;
       }
+      ctx.strokeStyle = path.color;
 
       let { x, y } = path.positions[0];
       let prevX = x;
@@ -53,7 +52,6 @@ export function drawOnCanvas(
 
       ctx.beginPath();
       ctx.moveTo(x, y);
-
       for (let j = 1; j < path.positions.length; j++) {
         ({ x, y } = path.positions[j]);
         posInView =
@@ -61,8 +59,8 @@ export function drawOnCanvas(
 
         // Skip drawing if distance between previously drawn and current point is too small
         const distance_sq = (x - prevX) * (x - prevX) + (y - prevY) * (y - prevY);
-        // Equivalent to sqrt(distance_sq) / viewWidth < 15 / canvas.width
-        if (distance_sq * canvas.width * canvas.width < 225 * viewWidth * viewWidth) {
+        // Equivalent to sqrt(distance_sq) / viewWidth < 20 / canvas.width
+        if (distance_sq * canvas.width * canvas.width < 400 * viewWidth * viewWidth) {
           continue;
         }
 
