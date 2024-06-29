@@ -47,20 +47,35 @@ export function drawOnCanvas(
         continue;
       }
 
-      const startPos = path.positions[0];
+      let { x, y } = path.positions[0];
+      let prevX = x;
+      let prevY = y;
+
       ctx.beginPath();
-      ctx.moveTo(startPos.x, startPos.y);
+      ctx.moveTo(x, y);
 
       for (let j = 1; j < path.positions.length; j++) {
-        const pos = path.positions[j];
-        const { x, y } = pos;
+        ({ x, y } = path.positions[j]);
         posInView =
           x > viewCorners.x1 && x < viewCorners.x2 && y > viewCorners.y1 && y < viewCorners.y2;
-        if (!posInView && !prevPosInView) {
-          ctx.moveTo(x, y);
-        } else {
+
+        // Skip drawing if distance between previously drawn and current point is too small
+        const distance_sq = (x - prevX) * (x - prevX) + (y - prevY) * (y - prevY);
+        // Equivalent to sqrt(distance_sq) / viewWidth < 15 / canvas.width
+        if (distance_sq * canvas.width * canvas.width < 225 * viewWidth * viewWidth) {
+          continue;
+        }
+
+        // Skip drawing if previous and current point are out of view
+        if (prevPosInView) {
+          ctx.lineTo(x, y);
+        } else if (posInView) {
+          ctx.moveTo(prevX, prevY);
           ctx.lineTo(x, y);
         }
+
+        prevX = x;
+        prevY = y;
         prevPosInView = posInView;
       }
 
