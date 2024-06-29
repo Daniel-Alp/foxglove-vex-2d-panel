@@ -45,6 +45,7 @@ export function drawOnCanvas(
         continue;
       }
       ctx.strokeStyle = path.color;
+      ctx.fillStyle = path.color;
 
       let { x, y } = path.positions[0];
       let prevX = x;
@@ -59,8 +60,8 @@ export function drawOnCanvas(
 
         // Skip drawing if distance between previously drawn and current point is too small
         const distance_sq = (x - prevX) * (x - prevX) + (y - prevY) * (y - prevY);
-        // Equivalent to sqrt(distance_sq) / viewWidth < 20 / canvas.width
-        if (distance_sq * canvas.width * canvas.width < 400 * viewWidth * viewWidth) {
+        // Equivalent to sqrt(distance_sq) / viewWidth < 15 / canvas.width
+        if (distance_sq * canvas.width * canvas.width < 225 * viewWidth * viewWidth) {
           continue;
         }
 
@@ -76,8 +77,17 @@ export function drawOnCanvas(
         prevY = y;
         prevPosInView = posInView;
       }
-
       ctx.stroke();
+
+      // Draw arrow indicating heading of final position
+      const theta = paths[i].positions[paths[i].positions.length - 1].theta;
+
+      ctx.beginPath();
+      ctx.moveTo(x + Math.sin(theta) * 4, y + Math.cos(theta) * 4);
+      ctx.lineTo(x + Math.cos(theta) * 2, y - Math.sin(theta) * 2);
+      ctx.lineTo(x - Math.cos(theta) * 2, y + Math.sin(theta) * 2);
+      ctx.closePath();
+      ctx.fill();
     }
 
     ctx.resetTransform();
