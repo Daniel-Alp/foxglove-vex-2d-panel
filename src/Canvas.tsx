@@ -21,7 +21,7 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
     drawOnCanvas(paths, viewCorners, canvasRef.current!);
   }, [paths, viewCorners]);
 
-  const handleOnWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+  function handleOnWheel(e: React.WheelEvent<HTMLCanvasElement>) {
     const boundingRect = e.currentTarget.getBoundingClientRect();
     const xCanvas = e.clientX - boundingRect.left;
     const yCanvas = boundingRect.height - (e.clientY - boundingRect.top);
@@ -37,9 +37,9 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
       x2: linearInterpolate(x2, xView, t),
       y2: linearInterpolate(y2, yView, t),
     });
-  };
+  }
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     if (!dragging) {
       return;
     }
@@ -55,7 +55,7 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
       x2: x2 + viewMovementX,
       y2: y2 + viewMovementY,
     });
-  };
+  }
 
   return (
     <div style={{ width: "100%", height: "100%" }}>
