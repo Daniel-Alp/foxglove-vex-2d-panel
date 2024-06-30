@@ -58,14 +58,11 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
   }
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+    <div style={{ width: "100%", height: "100%" }}>
       <canvas
         style={{
           width: "100%",
           height: "100%",
-          position: "absolute",
-          top: 0,
-          left: 0,
           objectFit: "contain",
         }}
         width={720}
