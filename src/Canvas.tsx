@@ -43,11 +43,11 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
     if (!dragging) {
       return;
     }
-    const boundingRect = e.currentTarget.getBoundingClientRect();
+    const { width, height } = e.currentTarget.getBoundingClientRect();
     const { x1, y1, x2, y2 } = viewCorners;
 
-    const viewMovementX = -e.movementX * ((x2 - x1) / boundingRect.width);
-    const viewMovementY = e.movementY * ((y2 - y1) / boundingRect.height);
+    const viewMovementX = -e.movementX * ((x2 - x1) / width);
+    const viewMovementY = e.movementY * ((y2 - y1) / height);
 
     setViewCorners({
       x1: x1 + viewMovementX,
@@ -58,9 +58,16 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
   }
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
       <canvas
-        style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          objectFit: "contain",
+        }}
         width={720}
         height={720}
         ref={canvasRef}

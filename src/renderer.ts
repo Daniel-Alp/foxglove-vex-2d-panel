@@ -25,7 +25,7 @@ export function drawOnCanvas(
     // Translate so that bottom left view corner is the bottom left corner of the canvas
     ctx.translate(-viewCorners.x1, -viewCorners.y1);
 
-    ctx.fillStyle = "white";
+    ctx.fillStyle = "#808080";
     ctx.fillRect(viewCorners.x1, viewCorners.y1, viewWidth, viewHeight);
 
     //Image viewcorners are (-72, -72) and (72, 72)
