@@ -53,6 +53,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
             switch (payload.path[2]) {
               case "topic":
                 draft[index].topic = payload.value as string;
+                draft[index].positions = [];
                 break;
               case "color":
                 draft[index].color = payload.value as string;
