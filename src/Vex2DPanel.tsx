@@ -13,17 +13,21 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "reac
 import ReactDOM from "react-dom";
 
 import { Canvas } from "./Canvas";
-import { PanelState, Path, Position } from "./types";
+import { PanelState, Position, background } from "./types";
 
 function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Element {
   const [topics, setTopics] = useState<Immutable<Topic[]>>();
-  const [paths, setPaths] = useState<Path[]>(() => {
+  const [panelState, setPanelState] = useState<PanelState>(() => {
     if (JSON.stringify(context.initialState) === "{}") {
-      return [];
+      return { paths: [], background: "competition" };
     }
-    // When a new websocket connection is opened, restore only the topic names and colors
-    const savedPaths = (context.initialState as PanelState).paths;
-    return savedPaths.map((path) => ({ topic: path.topic, positions: [], color: path.color }));
+    // When a new websocket connection is opened, clear old position arrays but restore everything else
+    const savedState = context.initialState as PanelState;
+
+    return {
+      ...savedState,
+      paths: savedState.paths.map((path) => ({ ...path, positions: [] })),
+    };
   });
 
   const positionTopics = useMemo(
@@ -32,45 +36,48 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
   );
 
   const actionHandler = useCallback((settingsTreeAction: SettingsTreeAction) => {
-    setPaths(
-      produce<Path[]>((draft) => {
+    setPanelState(
+      produce<PanelState>((draft) => {
         const { action, payload } = settingsTreeAction;
         const index = Number(payload.path[1]);
-
         switch (action) {
           case "perform-node-action":
             switch (payload.id) {
               case "add-path":
-                draft.push({ topic: undefined, positions: [], color: "black" });
+                draft.paths.push({ topic: undefined, positions: [], color: "black" });
                 break;
               case "delete-path":
-                draft.splice(index, 1);
+                draft.paths.splice(index, 1);
                 break;
             }
             break;
           case "update":
-            // path[0] === "paths" always
-            switch (payload.path[2]) {
-              case "topic":
-                draft[index].topic = payload.value as string;
-                draft[index].positions = [];
+            switch (payload.path[0]) {
+              case "paths":
+                switch (payload.path[2]) {
+                  case "topic":
+                    draft.paths[index].topic = payload.value as string;
+                    draft.paths[index].positions = [];
+                    break;
+                  case "color":
+                    draft.paths[index].color = payload.value as string;
+                    break;
+                }
                 break;
-              case "color":
-                draft[index].color = payload.value as string;
-                break;
+              case "general":
+                draft.background = payload.value as background;
             }
-            break;
         }
       }),
     );
   }, []);
 
   useEffect(() => {
-    context.saveState({ paths });
+    context.saveState(panelState);
     const options = positionTopics.map((topic) => ({ value: topic.name, label: topic.name }));
 
     const children: SettingsTreeChildren = Object.fromEntries(
-      paths.map((path, index) => [
+      panelState.paths.map((path, index) => [
         `${index}`,
         {
           actions: [
@@ -102,6 +109,20 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
 
     const panelSettings: SettingsTree = {
       nodes: {
+        general: {
+          fields: {
+            background: {
+              label: "Background",
+              input: "select",
+              options: [
+                { value: "competition", label: "competition" },
+                { value: "skills", label: "skills" },
+                { value: "empty", label: "empty" },
+              ],
+              value: panelState.background,
+            },
+          },
+        },
         paths: {
           actions: [
             {
@@ -119,24 +140,26 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
       actionHandler,
     };
     context.updatePanelSettingsEditor(panelSettings);
-  }, [actionHandler, context, paths, positionTopics]);
+  }, [actionHandler, context, panelState, positionTopics]);
 
   useEffect(() => {
-    context.saveState({ paths });
-    const subscriptions = paths.filter((path) => path.topic).map((path) => ({ topic: path.topic }));
+    context.saveState(panelState);
+    const subscriptions = panelState.paths
+      .filter((path) => path.topic)
+      .map((path) => ({ topic: path.topic }));
     context.subscribe(subscriptions as Subscription[]);
-  }, [context, paths]);
+  }, [context, panelState]);
 
   useLayoutEffect(() => {
     context.onRender = (renderState, done) => {
       setTopics(renderState.topics);
 
       const newMessages = (renderState.currentFrame ?? []) as MessageEvent<Position>[];
-      setPaths(
-        produce<Path[]>((draft) => {
+      setPanelState(
+        produce<PanelState>((draft) => {
           // Messages are already sorted by receive time
           newMessages.forEach((messageEvent) => {
-            draft.forEach((path) => {
+            draft.paths.forEach((path) => {
               if (path.topic === messageEvent.topic) {
                 path.positions.push(messageEvent.message);
               }
@@ -151,7 +174,7 @@ function Vex2DPanel({ context }: { context: PanelExtensionContext }): JSX.Elemen
     context.watch("currentFrame");
   }, [context]);
 
-  return <Canvas paths={paths}></Canvas>;
+  return <Canvas panelState={panelState}></Canvas>;
 }
 
 export function initVex2DPanel(context: PanelExtensionContext): () => void {

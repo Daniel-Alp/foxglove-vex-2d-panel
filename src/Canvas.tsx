@@ -2,13 +2,13 @@ import { Button, Fade, Tooltip } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 
 import { drawOnCanvas } from "./renderer";
-import { Path, ViewCorners } from "./types";
+import { PanelState, ViewCorners } from "./types";
 
 function linearInterpolate(start: number, end: number, t: number) {
   return start + t * (end - start);
 }
 
-export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
+export function Canvas({ panelState }: { panelState: PanelState }): JSX.Element {
   const [viewCorners, setViewCorners] = useState<ViewCorners>({
     x1: -72,
     y1: -72,
@@ -20,8 +20,8 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    drawOnCanvas(paths, viewCorners, canvasRef.current!);
-  }, [paths, viewCorners]);
+    drawOnCanvas(panelState, viewCorners, canvasRef.current!);
+  }, [panelState, viewCorners]);
 
   function handleOnWheel(e: React.WheelEvent<HTMLCanvasElement>) {
     const { width, height, left, top } = e.currentTarget.getBoundingClientRect();

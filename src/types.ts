@@ -18,6 +18,9 @@ export type ViewCorners = {
   y2: number;
 };
 
+export type background = "empty" | "competition" | "skills";
+
 export type PanelState = {
   paths: Path[];
+  background: background;
 };
