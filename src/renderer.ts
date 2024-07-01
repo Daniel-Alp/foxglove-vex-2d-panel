@@ -32,7 +32,6 @@ export function drawOnCanvas(
     ctx.drawImage(field_img, -72, -72, 144, 144);
 
     ctx.lineWidth = 2 * (viewWidth / canvas.width); // Line is same thickness regardless of zoom
-    ctx.lineCap = "round";
 
     let posInView = true;
     let prevPosInView = true;

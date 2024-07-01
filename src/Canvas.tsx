@@ -1,4 +1,4 @@
-import { Button } from "@mui/material";
+import { Button, Fade, Tooltip } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 
 import { drawOnCanvas } from "./renderer";
@@ -16,6 +16,7 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
     y2: 72,
   });
   const [dragging, setDragging] = useState(false);
+  const [mouseCoord, setMouseCoord] = useState<{ xView: number; yView: number } | undefined>();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -30,6 +31,8 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
 
     const xView = linearInterpolate(x1, x2, xCanvas / width);
     const yView = linearInterpolate(y1, y2, yCanvas / height);
+    setMouseCoord({ xView, yView });
+
     const t = Math.sign(e.deltaY) * -0.1;
 
     setViewCorners({
@@ -41,12 +44,19 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
   }
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
+    const { width, height, left, top } = e.currentTarget.getBoundingClientRect();
+    const xCanvas = e.clientX - left;
+    const yCanvas = height - (e.clientY - top);
+    const { x1, y1, x2, y2 } = viewCorners;
+
+    const xView = linearInterpolate(x1, x2, xCanvas / width);
+    const yView = linearInterpolate(y1, y2, yCanvas / height);
+    setMouseCoord({ xView, yView });
+
     if (!dragging) {
       return;
     }
 
-    const { width, height } = e.currentTarget.getBoundingClientRect();
-    const { x1, y1, x2, y2 } = viewCorners;
     const viewMovementX = -e.movementX * ((x2 - x1) / width);
     const viewMovementY = e.movementY * ((y2 - y1) / height);
 
@@ -59,36 +69,63 @@ export function Canvas({ paths }: { paths: Path[] }): JSX.Element {
   }
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
-      <canvas
-        style={{
-          width: "100%",
-          height: "100%",
-          position: "absolute",
-          objectFit: "contain",
-        }}
-        width={720}
-        height={720}
-        ref={canvasRef}
-        onWheel={handleOnWheel}
-        onMouseMove={handleMouseMove}
-        onMouseDown={() => {
-          setDragging(true);
-        }}
-        onMouseUp={() => {
-          setDragging(false);
-        }}
-        onMouseLeave={() => {
-          setDragging(false);
-        }}
-      />
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Tooltip
+        open={mouseCoord != undefined}
+        title={
+          <div>
+            x: {mouseCoord?.xView.toFixed(2)} <br />
+            y: {mouseCoord?.yView.toFixed(2)}
+          </div>
+        }
+        followCursor
+        disableInteractive
+        arrow={false}
+        placement="right"
+        TransitionComponent={Fade}
+        TransitionProps={{ timeout: 0 }}
+      >
+        <canvas
+          style={{
+            maxWidth: "100%",
+            maxHeight: "100%",
+            aspectRatio: 1,
+            position: "absolute",
+            cursor: "crosshair",
+          }}
+          width={720}
+          height={720}
+          ref={canvasRef}
+          onWheel={handleOnWheel}
+          onMouseMove={handleMouseMove}
+          onMouseDown={() => {
+            setDragging(true);
+          }}
+          onMouseUp={() => {
+            setDragging(false);
+          }}
+          onMouseLeave={() => {
+            setDragging(false);
+            setMouseCoord(undefined);
+          }}
+        />
+      </Tooltip>
       <Button
         style={{
-          right: "1%",
-          bottom: "1%",
+          right: "2%",
+          bottom: "2%",
           position: "absolute",
           color: "black",
-          fontFamily: "monospace",
+          fontFamily: "inherit",
           fontWeight: "bold",
         }}
         variant="contained"
