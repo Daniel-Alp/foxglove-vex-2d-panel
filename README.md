@@ -5,4 +5,4 @@
 
 For more info, **[read the docs](https://foxglove-vex-docs.vercel.app/visualizing#vex-2d-panel-custom-panel)**!
 
-[](https://raw.githubusercontent.com/Daniel-Alp/foxglove-vex-2d-panel/blob/master/thumbnail.png)
+![](https://github.com/user-attachments/assets/4a1a78fc-fecf-4b14-93c9-523cc6adaed4)
